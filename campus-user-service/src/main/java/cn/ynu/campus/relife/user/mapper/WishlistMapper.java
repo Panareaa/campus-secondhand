@@ -1,0 +1,9 @@
+package cn.ynu.campus.relife.user.mapper;
+
+import cn.ynu.campus.relife.user.domain.Wishlist;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface WishlistMapper extends BaseMapper<Wishlist> {
+}

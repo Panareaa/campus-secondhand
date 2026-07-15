@@ -1,0 +1,78 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: campus-gateway
+  config:
+    import: optional:nacos:campus-shared.yaml?group=DEFAULT_GROUP&refreshEnabled=true
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        file-extension: yaml
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns: "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - PATCH
+                  - OPTIONS
+                allowedHeaders: "*"
+                allowCredentials: true
+                maxAge: 3600
+          routes:
+            - id: user-service
+              uri: ${GATEWAY_USER_URI:http://127.0.0.1:8101}
+              predicates:
+                - Path=/api/auth/**,/api/users/**,/api/wishlist/**,/api/points/**
+            - id: item-service
+              uri: ${GATEWAY_ITEM_URI:http://127.0.0.1:8102}
+              predicates:
+                - Path=/api/categories/**,/api/items/**
+            - id: trade-service
+              uri: ${GATEWAY_TRADE_URI:http://127.0.0.1:8103}
+              predicates:
+                - Path=/api/cart/**,/api/trades/**,/api/notifications/**
+            - id: stock-service
+              uri: ${GATEWAY_STOCK_URI:http://127.0.0.1:8104}
+              predicates:
+                - Path=/api/stock/**
+            - id: ai-service
+              uri: ${GATEWAY_AI_URI:http://127.0.0.1:8105}
+              predicates:
+                - Path=/api/ai/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+campus:
+  jwt:
+    secret: ${JWT_SECRET:CampusRelifeDevSecretKey2026ChangeInProd!}
+    expire-seconds: 7200
+  gateway:
+    rate-limit:
+      enabled: ${GATEWAY_RATE_LIMIT_ENABLED:true}
+      limit: ${GATEWAY_RATE_LIMIT:10}
+      window-seconds: ${GATEWAY_RATE_LIMIT_WINDOW:10}
+      paths:
+        - /api/categories
+
+logging:
+  level:
+    root: INFO
+    cn.ynu.campus.relife: DEBUG

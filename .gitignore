@@ -1,0 +1,55 @@
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+application-local.yml
+application-local.properties
+
+# Node / Frontend (Day 5+)
+node_modules/
+dist/
+.npm
+*.local
+
+# Docker volumes
+docker/data/
+
+# AI keys
+**/openai-api-key*
+**/api-key*

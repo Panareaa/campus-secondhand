@@ -1,0 +1,10 @@
+campus:
+  jwt:
+    expire-seconds: 7200
+  gateway:
+    rate-limit:
+      enabled: true
+      limit: 10
+      window-seconds: 10
+  trade:
+    pending-timeout-minutes: 1440

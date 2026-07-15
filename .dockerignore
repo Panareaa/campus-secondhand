@@ -1,0 +1,17 @@
+target/
+**/target/
+.git/
+.idea/
+.vscode/
+*.iml
+node_modules/
+campus-web/node_modules/
+campus-web/dist/
+docs/
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+docker/data/
+terminals/

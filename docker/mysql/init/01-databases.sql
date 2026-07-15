@@ -1,0 +1,13 @@
+CREATE DATABASE IF NOT EXISTS campus_user  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS campus_item  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS campus_trade DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS campus_stock DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS campus_ai    DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'relife'@'%' IDENTIFIED BY 'relife123';
+GRANT ALL PRIVILEGES ON campus_user.* TO 'relife'@'%';
+GRANT ALL PRIVILEGES ON campus_item.* TO 'relife'@'%';
+GRANT ALL PRIVILEGES ON campus_trade.* TO 'relife'@'%';
+GRANT ALL PRIVILEGES ON campus_stock.* TO 'relife'@'%';
+GRANT ALL PRIVILEGES ON campus_ai.* TO 'relife'@'%';
+FLUSH PRIVILEGES;

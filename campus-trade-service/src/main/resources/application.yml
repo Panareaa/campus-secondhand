@@ -1,0 +1,74 @@
+server:
+  port: 8103
+
+spring:
+  application:
+    name: campus-trade-service
+  config:
+    import: optional:nacos:campus-shared.yaml?group=DEFAULT_GROUP&refreshEnabled=true
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        file-extension: yaml
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 3000
+            read-timeout: 5000
+            logger-level: basic
+          campus-user-service:
+            url: ${campus.feign.user-service-url:}
+          campus-item-service:
+            url: ${campus.feign.item-service-url:}
+          campus-stock-service:
+            url: ${campus.feign.stock-service-url:}
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 5
+            failureRateThreshold: 50
+            waitDurationInOpenState: 10s
+      timelimiter:
+        configs:
+          default:
+            timeoutDuration: 5s
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+campus:
+  internal:
+    token: ${INTERNAL_TOKEN:CampusRelifeInternalDevToken2026}
+  trade:
+    pending-timeout-minutes: ${TRADE_PENDING_TIMEOUT_MINUTES:1440}
+    timeout-scan-interval-ms: ${TRADE_TIMEOUT_SCAN_MS:60000}
+  feign:
+    item-service-url: ${ITEM_SERVICE_URL:}
+    stock-service-url: ${STOCK_SERVICE_URL:}
+    user-service-url: ${USER_SERVICE_URL:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+    cn.ynu.campus.relife: DEBUG

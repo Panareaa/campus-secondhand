@@ -1,0 +1,30 @@
+# Nacos 模式：docker compose --profile nacos up -d 后，各服务加 --spring.profiles.active=nacos 启动
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: lb://campus-user-service
+              predicates:
+                - Path=/api/auth/**,/api/users/**,/api/wishlist/**,/api/points/**
+            - id: item-service
+              uri: lb://campus-item-service
+              predicates:
+                - Path=/api/categories/**,/api/items/**
+            - id: trade-service
+              uri: lb://campus-trade-service
+              predicates:
+                - Path=/api/cart/**,/api/trades/**,/api/notifications/**
+            - id: stock-service
+              uri: lb://campus-stock-service
+              predicates:
+                - Path=/api/stock/**
+            - id: ai-service
+              uri: lb://campus-ai-service
+              predicates:
+                - Path=/api/ai/**

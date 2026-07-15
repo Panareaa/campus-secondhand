@@ -1,0 +1,41 @@
+server:
+  port: 8104
+
+spring:
+  application:
+    name: campus-stock-service
+  config:
+    import: optional:nacos:campus-shared.yaml?group=DEFAULT_GROUP&refreshEnabled=true
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/campus_stock?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:relife}
+    password: ${MYSQL_PASSWORD:relife123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        file-extension: yaml
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+campus:
+  internal:
+    token: ${INTERNAL_TOKEN:CampusRelifeInternalDevToken2026}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+    cn.ynu.campus.relife: DEBUG

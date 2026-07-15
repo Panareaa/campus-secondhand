@@ -1,0 +1,59 @@
+server:
+  port: 8105
+
+spring:
+  application:
+    name: campus-ai-service
+  config:
+    import: optional:nacos:campus-shared.yaml?group=DEFAULT_GROUP&refreshEnabled=true
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/campus_ai?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:relife}
+    password: ${MYSQL_PASSWORD:relife123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        file-extension: yaml
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 3000
+            read-timeout: 10000
+            logger-level: basic
+          campus-item-service:
+            url: ${campus.feign.item-service-url:}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+campus:
+  internal:
+    token: ${INTERNAL_TOKEN:CampusRelifeInternalDevToken2026}
+  ai:
+    llm-enabled: ${AI_LLM_ENABLED:false}
+    model-name: ${OPENAI_MODEL:gpt-4o-mini}
+    describe-timeout-ms: ${AI_DESCRIBE_TIMEOUT_MS:8000}
+  feign:
+    # 留空时走 Nacos 服务发现；本地无 Nacos 可设 ITEM_SERVICE_URL=http://127.0.0.1:8102
+    item-service-url: ${ITEM_SERVICE_URL:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+    cn.ynu.campus.relife: DEBUG

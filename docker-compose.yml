@@ -1,0 +1,346 @@
+# 拾光校园 · Docker Compose
+# 仅基础设施（本地开发）：docker compose up -d
+# 全栈（6 服务 + Nginx + Nacos + 前端）：docker compose --profile app up -d --build
+
+x-java-env: &java-env
+  TZ: Asia/Shanghai
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  MYSQL_USER: ${MYSQL_USER:-relife}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:-relife123}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  JWT_SECRET: ${JWT_SECRET:-CampusRelifeDevSecretKey2026ChangeInProd!}
+  INTERNAL_TOKEN: ${INTERNAL_TOKEN:-CampusRelifeInternalDevToken2026}
+  NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+  NACOS_DISCOVERY_ENABLED: "true"
+  NACOS_CONFIG_ENABLED: "true"
+
+x-gateway-env: &gateway-env
+  GATEWAY_USER_URI: lb://campus-user-service
+  GATEWAY_ITEM_URI: lb://campus-item-service
+  GATEWAY_TRADE_URI: lb://campus-trade-service
+  GATEWAY_STOCK_URI: lb://campus-stock-service
+  GATEWAY_AI_URI: lb://campus-ai-service
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: relife-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-relife_root}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - relife-mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prelife_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - relife-net
+
+  mysql-slave:
+    image: mysql:8.0
+    container_name: relife-mysql-slave
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-relife_root}
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - relife-mysql-slave-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --server-id=2
+      - --relay-log=relay-bin
+      - --read-only=1
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prelife_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  mysql-slave-init:
+    profiles: ["app"]
+    image: mysql:8.0
+    container_name: relife-mysql-slave-init
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-relife_root}
+    volumes:
+      - ./docker/mysql/setup-replica.sh:/setup-replica.sh:ro
+    entrypoint: ["bash", "/setup-replica.sh"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: relife-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - relife-net
+
+  nacos:
+    profiles: ["app"]
+    image: nacos/nacos-server:v3.0.0
+    container_name: relife-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      # 客户端 Open API 鉴权（演示环境关闭）
+      NACOS_AUTH_ENABLE: "false"
+      # Nacos 3.x 控制台默认独立在 8080，且默认开启登录；演示环境关闭便于直接进入
+      NACOS_AUTH_CONSOLE_ENABLE: "false"
+      # 关闭 Admin API 鉴权，供 nacos-config-init 自动发布 campus-shared.yaml
+      NACOS_AUTH_ADMIN_ENABLE: "false"
+      # Nacos 3.x 容器启动仍要求设置 Token（即使关闭鉴权）
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-U2VjcmV0S2V5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng==}
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:-security}
+      NACOS_CORE_API_COMPATIBILITY_CONSOLE_ENABLED: "true"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      # Nacos 3.x 控制台在容器内 8080；宿主机用 8849，避免与 Gateway :8080 冲突
+      - "8849:8080"
+      - "9848:9848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf 'http://127.0.0.1:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=1' >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - relife-net
+
+  nacos-config-init:
+    profiles: ["app"]
+    image: curlimages/curl:8.12.1
+    container_name: relife-nacos-config-init
+    restart: "no"
+    environment:
+      NACOS_ADDR: nacos:8848
+      DATA_ID: campus-shared.yaml
+      GROUP: DEFAULT_GROUP
+      CONFIG_FILE: /config/campus-shared.yaml
+      NACOS_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
+      NACOS_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:-security}
+    volumes:
+      - ./docker/nacos/campus-shared.yaml:/config/campus-shared.yaml:ro
+      - ./docker/nacos/publish-config.sh:/publish-config.sh:ro
+    entrypoint: ["sh", "/publish-config.sh"]
+    depends_on:
+      nacos:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  user-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-user-service
+        SERVICE_PORT: 8101
+    container_name: relife-user
+    restart: unless-stopped
+    environment:
+      <<: *java-env
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  item-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-item-service
+        SERVICE_PORT: 8102
+    container_name: relife-item
+    restart: unless-stopped
+    environment:
+      <<: *java-env
+      MYSQL_SLAVE_HOST: mysql-slave
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  stock-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-stock-service
+        SERVICE_PORT: 8104
+    container_name: relife-stock
+    restart: unless-stopped
+    environment:
+      <<: *java-env
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  trade-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-trade-service
+        SERVICE_PORT: 8103
+    container_name: relife-trade
+    restart: unless-stopped
+    environment:
+      <<: *java-env
+      TRADE_PENDING_TIMEOUT_MINUTES: ${TRADE_PENDING_TIMEOUT_MINUTES:-1440}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      item-service:
+        condition: service_healthy
+      stock-service:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  ai-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-ai-service
+        SERVICE_PORT: 8105
+    container_name: relife-ai
+    restart: unless-stopped
+    environment:
+      <<: *java-env
+      AI_LLM_ENABLED: ${AI_LLM_ENABLED:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      item-service:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  gateway:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring
+      args:
+        SERVICE_MODULE: campus-gateway
+        SERVICE_PORT: 8080
+    container_name: relife-gateway
+    restart: unless-stopped
+    environment:
+      <<: [*java-env, *gateway-env]
+    ports:
+      - "8080:8080"
+    depends_on:
+      nacos:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      item-service:
+        condition: service_healthy
+      trade-service:
+        condition: service_healthy
+      stock-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+  nginx:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: relife-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - relife-net
+
+networks:
+  relife-net:
+    driver: bridge
+
+volumes:
+  relife-mysql-data:
+  relife-mysql-slave-data:
